@@ -15,8 +15,60 @@ const serverlessConfiguration: AWS = {
       define: { 'require.resolve': undefined },
       platform: 'node',
     },
+    dynamodb: {
+      stages: ['dev'],
+      start: {
+        port: 8000,
+        inMemory: true,
+        heapInitial: "200m",
+        heapMax: "1g",
+        migrate: true,
+        seed: false,
+        convertEmptyValues: true,
+      },
+    },
   },
-  plugins: ['serverless-esbuild'],
+  resources: {
+    Resources: {
+      usersTable: {
+        Type: 'AWS::DynamoDB::Table',
+        Properties: {
+          TableName: 'users',
+          AttributeDefinitions: [
+            {
+              AttributeName: 'email',
+              AttributeType: 'S',
+            },
+            {
+              AttributeName: 'unixtime',
+              AttributeType: 'N',
+            }
+          ],
+          KeySchema: [
+              {
+                AttributeName: 'email',
+                KeyType: 'HASH',
+              },
+              {
+                AttributeName: 'unixtime',
+                KeyType: 'RANGE',
+              },
+          ],
+          ProvisionedThroughput: {
+            ReadCapacityUnits: 1,
+            WriteCapacityUnits: 1,
+          },
+        },
+      }
+    },
+  }
+  ,
+  plugins: [
+    'serverless-esbuild',
+    'serverless-webpack',
+    'serverless-dynamodb-local',
+    'serverless-offline',
+  ],
   provider: {
     name: 'aws',
     runtime: 'nodejs14.x',
