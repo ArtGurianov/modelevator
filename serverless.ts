@@ -6,34 +6,43 @@ const serverlessConfiguration: AWS = {
   service: 'modelevator',
   frameworkVersion: '2',
   custom: {
-    esbuild: {
-      bundle: true,
-      minify: false,
-      sourcemap: true,
-      exclude: ['aws-sdk'],
-      target: 'node14',
-      define: { 'require.resolve': undefined },
-      platform: 'node',
+    region: '${opt:region, self:provider.region}',
+    stage: '${opt:stage, self:provider.stage}',
+    main_table: '${self:service}-main-table-${opt:stage, self:provider.stage}',
+    table_throughputs: {
+      prod: 5,
+      default: 1,
     },
+    table_throughput: '${self:custom.TABLE_THROUGHPUTS.${self:custom.stage}, self:custom.table_throughputs.default}',
     dynamodb: {
       stages: ['dev'],
       start: {
-        port: 8000,
+        port: 8008,
         inMemory: true,
         heapInitial: "200m",
         heapMax: "1g",
         migrate: true,
-        seed: false,
+        seed: true,
         convertEmptyValues: true,
       },
     },
+    ["serverless-offline"]: {
+      httpPort: 3000,
+      babelOptions: {
+        presets: ["env"],
+      },
+    },
+  },
+  package: {
+    individually: true,
   },
   resources: {
     Resources: {
-      usersTable: {
+      mainTable: {
         Type: 'AWS::DynamoDB::Table',
+        DeletionPolicy: 'Retain',
         Properties: {
-          TableName: 'users',
+          TableName: 'main',
           AttributeDefinitions: [
             {
               AttributeName: 'email',
@@ -58,20 +67,23 @@ const serverlessConfiguration: AWS = {
             ReadCapacityUnits: 1,
             WriteCapacityUnits: 1,
           },
+          GlobalSecondaryIndexes: [],
         },
       }
     },
   }
   ,
   plugins: [
-    'serverless-esbuild',
-    'serverless-webpack',
+    'serverless-bundle',
     'serverless-dynamodb-local',
     'serverless-offline',
+    'serverless-dotenv-plugin',
   ],
   provider: {
     name: 'aws',
     runtime: 'nodejs14.x',
+    stage: 'dev',
+    region: 'eu-west-1',
     apiGateway: {
       minimumCompressionSize: 1024,
       shouldStartNameWithService: true,
@@ -79,7 +91,28 @@ const serverlessConfiguration: AWS = {
     environment: {
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
       NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
+      REGION: '${self:custom.region}',
+      STAGE: '${self:custom.stage}',
+      MAIN_TABLE: '${self:custom.main_table}',
     },
+    iamRoleStatements: [
+      {
+        Effect: 'Allow',
+        Action: [
+            'dynamodb:DescribeTable',
+            'dynamodb:Query',
+            'dynamodb:Scan',
+            'dynamodb:GetItem',
+            'dynamodb:PutItem',
+            'dynamodb:UpdateItem',
+            'dynamodb:DeleteItem'
+        ],
+        Resource: [
+          {"Fn::GetAtt": [ 'MainTable', 'Arn' ]},
+        ],
+      },
+    ],
+    iamManagedPolicies: [],
     lambdaHashingVersion: '20201221',
   },
   // import the function via paths

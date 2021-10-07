@@ -25,8 +25,7 @@
     "serverless-bundle": "^5.0.2",
     "serverless-dotenv-plugin": "^3.10.0",
     "serverless-esbuild": "^1.17.1",
-    "serverless-offline": "^8.2.0",
-    "ts-node": "^9.1.1"
+    "serverless-offline": "^8.2.0"
   },
   "author": "The serverless webpack authors (https://github.com/elastic-coders/serverless-webpack)",
   "license": "MIT"
